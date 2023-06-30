@@ -346,6 +346,7 @@ class VisionTransformer(nn.Module):
         drop_path_rate=0.0,
         norm_layer=nn.LayerNorm,
         init_std=0.02,
+        num_classes=0,
         **kwargs
     ):
         super().__init__()
@@ -377,6 +378,14 @@ class VisionTransformer(nn.Module):
         self.apply(self._init_weights)
         self.fix_init_weight()
 
+
+        # classifier head, from timm.models.VisionTransformer
+
+        # use_fc_norm = global_pool == 'avg' if fc_norm is None else fc_norm
+        # self.fc_norm = norm_layer(embed_dim) if use_fc_norm else nn.Identity()
+        self.head_drop = nn.Dropout(drop_rate)
+        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+
     def fix_init_weight(self):
         def rescale(param, layer_id):
             param.div_(math.sqrt(2.0 * layer_id))
@@ -397,6 +406,16 @@ class VisionTransformer(nn.Module):
             trunc_normal_(m.weight, std=self.init_std)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
+
+
+    def forward_head(self, x, pre_logits: bool = False):
+        x = x[:, 0]
+        # if self.global_pool:
+        #     x = x[:, self.num_prefix_tokens:].mean(dim=1) if self.global_pool == 'avg' else x[:, 0]
+        # x = self.fc_norm(x)
+        x = self.head_drop(x)
+        return x if pre_logits else self.head(x)
+
 
     def forward(self, x, masks=None):
         if masks is not None:

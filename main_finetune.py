@@ -33,7 +33,8 @@ from src.utils.mae_datasets import build_dataset
 from src.utils.mae_pos_embed import interpolate_pos_embed
 from src.utils.mae_misc import NativeScalerWithGradNormCount as NativeScaler
 
-import models_vit
+from src.helper import (
+    init_model)
 
 from mae_engine_finetune import train_one_epoch, evaluate
 
@@ -50,11 +51,11 @@ def get_args_parser():
     parser.add_argument('--model', default='vit_large_patch16', type=str, metavar='MODEL',
                         help='Name of model to train')
 
-    parser.add_argument('--input_size', default=224, type=int,
+    parser.add_argument('--crop_size', default=224, type=int,
                         help='images input size')
 
-    parser.add_argument('--drop_path', type=float, default=0.1, metavar='PCT',
-                        help='Drop path rate (default: 0.1)')
+    parser.add_argument('--patch_size', default=14, type=int,
+                        help='ViT patch size')
 
     # Optimizer parameters
     parser.add_argument('--clip_grad', type=float, default=None, metavar='NORM',
@@ -193,13 +194,18 @@ def main(args):
         drop_last=False
     )
 
-    mixup_fn = None
+    # mixup_fn = None
     
-    model = models_vit.__dict__[args.model](
-        num_classes=num_classes,
-        drop_path_rate=args.drop_path,
-        global_pool=args.global_pool,
-    )
+    # model = models_vit.__dict__[args.model](
+    #     num_classes=num_classes,
+    #     drop_path_rate=args.drop_path,
+    #     global_pool=args.global_pool,
+    # )
+    encoder, predictor = init_model(
+        device=device,
+        patch_size=args.patch_size,
+        crop_size=args.crop_size,
+        model_name=args.model)
 
     if args.finetune and not args.eval:
         checkpoint = torch.load(args.finetune, map_location='cpu')
